@@ -26,6 +26,11 @@ header{padding:14px 20px;background:#fff;box-shadow:0 2px 8px var(--shadow);
 .nav button:hover:not(:disabled){background:#fff6e9;border-color:var(--accent)}
 .nav button:disabled{opacity:.4;cursor:not-allowed}
 .page-ind{font-size:14px;color:var(--muted);min-width:104px;text-align:center;font-variant-numeric:tabular-nums}
+.speed-group{display:flex;align-items:center;gap:4px;padding:4px 8px;background:#fff;border:1px solid #e2ddd3;border-radius:9px}
+.speed-group .speed-label{font-size:13px;color:var(--muted);margin-right:4px;display:flex;align-items:center;gap:5px}
+.speed-group button{border:1px solid transparent;background:transparent;color:var(--text);border-radius:6px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit;font-variant-numeric:tabular-nums}
+.speed-group button:hover:not(.active){background:#fff6e9;border-color:var(--accent)}
+.speed-group button.active{background:var(--accent);color:#fff;border-color:var(--accent-dark)}
 main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px;max-width:1600px;margin:0 auto;width:100%}
 @media(max-width:980px){main{grid-template-columns:1fr}}
 .card{background:var(--panel);border-radius:16px;box-shadow:0 4px 20px var(--shadow);
@@ -81,6 +86,12 @@ footer{text-align:center;padding:16px;font-size:12px;color:var(--muted)}
     </div>
   </div>
   <div class="nav">
+    <div class="speed-group" title="调整朗读速度">
+      <span class="speed-label">⏱ 速度</span>
+      <button type="button" data-speed="0.5">0.5×</button>
+      <button type="button" data-speed="0.75">0.75×</button>
+      <button type="button" data-speed="1">1×</button>
+    </div>
     <button id="prev">← 上一页</button>
     <span class="page-ind" id="ind"></span>
     <button id="next">下一页 →</button>
@@ -117,13 +128,39 @@ const ind = document.getElementById('ind');
 const btnPrev = document.getElementById('prev');
 const btnNext = document.getElementById('next');
 const bubble = document.getElementById('bubble');
+const SPEED_KEY = 'diu_playback_speed';
+const DEFAULT_RATE = 0.75;
 let cur = 0;
+let playRate = DEFAULT_RATE;
+const speedButtons = document.querySelectorAll('.speed-group button[data-speed]');
+
+function applySpeed(rate){
+  playRate = rate;
+  speedButtons.forEach(b => {
+    b.classList.toggle('active', parseFloat(b.dataset.speed) === rate);
+  });
+}
+
+(function initSpeed(){
+  let saved = parseFloat(localStorage.getItem(SPEED_KEY));
+  if(isNaN(saved) || saved < 0.25 || saved > 2) saved = DEFAULT_RATE;
+  applySpeed(saved);
+})();
+
+speedButtons.forEach(b => {
+  b.addEventListener('click', () => {
+    const v = parseFloat(b.dataset.speed);
+    if(isNaN(v)) return;
+    applySpeed(v);
+    try{ localStorage.setItem(SPEED_KEY, String(v)); }catch(_){}
+  });
+});
 
 function speak(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang='en-US'; u.rate=.9; u.pitch=1;
+  u.lang='en-US'; u.rate=playRate; u.pitch=1;
   window.speechSynthesis.speak(u);
 }
 
@@ -237,7 +274,7 @@ function renderPage(i){
 
   const g = document.createElement('div');
   g.className='guide';
-  g.innerHTML = '💡 <b>用法：</b>点击句子里的任意单词 → 朗读该词并在上方显示中文；<b>长按</b>单词 → 只看翻译，不朗读；点击句子空白处 → 朗读整句。';
+  g.innerHTML = '💡 <b>用法：</b>点击句子里的任意单词 → 朗读该词并在上方显示中文；<b>长按</b>单词 → 只看翻译，不朗读；点击句子空白处 → 朗读整句。顶部 ⏱ 可切换 <b>朗读速度</b>（0.5× / 0.75× / 1×），自动记忆。';
   reader.appendChild(g);
   hideBubble();
   window.scrollTo({top:0, behavior:'smooth'});
